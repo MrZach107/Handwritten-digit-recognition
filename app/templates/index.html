@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手寫數字識別</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #ff9999; 
+            --secondary-color: #ffd699; 
+            --accent-color: #ffa897; 
+            --bg-gradient: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            --card-bg: rgba(255, 255, 255, 0.95); 
+            --shadow: 0 10px 20px rgba(0, 0, 0, 0.2); 
+            --button-hover: #ffb3b3; 
+        }
+
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .app-container {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 800px;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .app-title {
+            color: var(--primary-color);
+            margin-bottom: 8px;
+            font-size: 2.2rem;
+            letter-spacing: 1px;
+        }
+        
+        .app-subtitle {
+            color: #666;
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 25px;
+        }
+        
+        .canvas-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        
+        #drawingCanvas {
+            border: 3px solid var(--accent-color);
+            border-radius: 10px;
+            background-color: white;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        button {
+            padding: 12px 25px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 8px rgba(255, 126, 95, 0.3);
+        }
+        
+        button:hover {
+            background-color: var(--button-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 12px rgba(255, 126, 95, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .divider { 
+            display: flex;
+            align-items: center;
+            justify-content: center; /* 確保內容置中 */
+            margin: 30px auto; /* 讓 divider 本身也置中 */
+            color: #888;
+            width: 80%;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #ddd;
+        }
+
+        .divider span {
+            padding: 0 15px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            white-space: nowrap; /* 防止文字換行 */
+        }
+        
+        .file-upload {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px 0;
+            width: 100%;
+        }
+        
+        .file-input-container {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+        
+        input[type="file"] {
+            padding: 10px;
+            max-width: 100%;
+        }
+        
+        #result {
+            min-height: 60px;
+            margin: 30px 0 10px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #333333;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: rgba(255, 128, 128, 0.5);
+            transition: all 0.3s ease;
+        }
+        
+        .confidence {
+            font-size: 1rem;
+            color: #666;
+            font-weight: normal;
+            margin-top: 5px;
+        }
+        
+        .footer {
+            margin-top: 20px;
+            color: rgba(255, 255, 255);
+            font-size: 1rem;
+        }
+        
+        @media (max-width: 600px) {
+            .app-container {
+                padding: 20px 15px;
+            }
+            
+            .app-title {
+                font-size: 1.8rem;
+            }
+            
+            #drawingCanvas {
+                width: 100%;
+                max-width: 280px;
+                height: auto;
+            }
+            
+            button {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <h1 class="app-title">手寫數字識別</h1>
+        <p class="app-subtitle">請在下方畫出 0-9 的數字，或上傳包含手寫數字的圖片</p>
+        
+        <div class="canvas-container">
+            <canvas id="drawingCanvas" width="280" height="280"></canvas>
+            <div class="button-group">
+                <button id="predictBtn">預測數字</button>
+                <button id="clearBtn">清除畫布</button>
+            </div>
+        </div>
+        
+        <div class="divider">
+            <span>或者</span>
+        </div>
+        
+        <div class="file-upload">
+            <div class="file-input-container">
+                <input type="file" id="imageUpload" accept="image/*">
+                <button id="uploadBtn">上傳並預測</button>
+            </div>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+    
+    <div class="footer">
+        © 2025 手寫數字識別系統 | 深度學習演示
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('drawingCanvas');
+            const ctx = canvas.getContext('2d');
+            const resultDiv = document.getElementById('result');
+            const predictBtn = document.getElementById('predictBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const imageUpload = document.getElementById('imageUpload');
+            
+            // 設置畫布
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.lineWidth = 15;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'black';
+            
+            let isDrawing = false;
+            
+            // 繪圖事件
+            function startDrawing(e) {
+                isDrawing = true;
+                draw(e);
+            }
+            
+            function stopDrawing() {
+                isDrawing = false;
+                ctx.beginPath();
+            }
+            
+            function draw(e) {
+                if (!isDrawing) return;
+                
+                // 獲取滑鼠/觸控位置
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+            }
+            
+            // 注冊事件監聽器
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+            
+            // 觸控支援
+            canvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                startDrawing(e);
+            });
+            canvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                draw(e);
+            });
+            canvas.addEventListener('touchend', stopDrawing);
+            
+            // 清除畫布
+            clearBtn.addEventListener('click', function() {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                resultDiv.textContent = "";
+                ctx.strokeStyle = 'black';
+                
+                // 添加動畫效果
+                clearBtn.classList.add('active');
+                setTimeout(() => {
+                    clearBtn.classList.remove('active');
+                }, 300);
+            });
+            
+            // 顯示預測結果的函數
+            function displayResult(data) {
+                if (data.error) {
+                    resultDiv.innerHTML = `<span style="color: #ff4d4d;">錯誤: ${data.error}</span>`;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div style="font-size: 2.5rem; color: var(--primary-color);">${data.prediction}</div>
+                        <div class="confidence">信心度: ${data.confidence}</div>
+                    `;
+                    
+                    // 添加簡單的彈出動畫
+                    resultDiv.style.transform = 'scale(1.05)';
+                    setTimeout(() => {
+                        resultDiv.style.transform = 'scale(1)';
+                    }, 200);
+                }
+            }
+            
+            // 預測
+            predictBtn.addEventListener('click', function() {
+                resultDiv.textContent = "處理中...";
+                
+                // 獲取 canvas 數據
+                const imageData = canvas.toDataURL('image/png');
+                
+                // 發送到伺服器
+                fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `image_data=${encodeURIComponent(imageData)}`
+                })
+                .then(response => response.json())
+                .then(displayResult)
+                .catch(error => {
+                    resultDiv.innerHTML = `<span style="color: #ff4d4d;">錯誤: ${error.message}</span>`;
+                });
+            });
+            
+            // 上傳圖片並預測
+            uploadBtn.addEventListener('click', function() {
+                if (!imageUpload.files.length) {
+                    alert('請先選擇一個圖片文件');
+                    return;
+                }
+                
+                resultDiv.textContent = "處理中...";
+                
+                const formData = new FormData();
+                formData.append('file', imageUpload.files[0]);
+                
+                fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(displayResult)
+                .catch(error => {
+                    resultDiv.innerHTML = `<span style="color: #ff4d4d;">錯誤: ${error.message}</span>`;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
